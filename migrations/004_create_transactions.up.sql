@@ -12,7 +12,7 @@ CREATE TABLE transactions (
     currency CHAR(3) NOT NULL,
     status transaction_status NOT NULL,
     payment_method_id UUID REFERENCES payment_methods(id) ON DELETE SET NULL,
-    idempotency_key VARCHAR(255) UNIQUE,
+    idempotency_key VARCHAR(255),
     description TEXT NULL,
     metadata JSONB NOT NULL DEFAULT '{}',
     error_code VARCHAR(100) NULL,
@@ -22,10 +22,11 @@ CREATE TABLE transactions (
     processed_at TIMESTAMPTZ NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (id, created_at)
-) PARTITION BY RANGE (created_at);
+    PRIMARY KEY (id)
+);
 
-CREATE UNIQUE INDEX idx_transactions_provider_transaction ON transactions (provider, provider_transaction_id, created_at);
+CREATE UNIQUE INDEX idx_transactions_provider_transaction ON transactions (provider, provider_transaction_id);
+CREATE UNIQUE INDEX idx_transactions_idempotency_key ON transactions (idempotency_key, created_at) WHERE idempotency_key IS NOT NULL;
 CREATE INDEX idx_transactions_merchant_id ON transactions (merchant_id, created_at);
 CREATE INDEX idx_transactions_customer_id ON transactions (customer_id, created_at);
 CREATE INDEX idx_transactions_status ON transactions (status, created_at);

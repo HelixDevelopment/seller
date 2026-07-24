@@ -51,9 +51,11 @@ else
     ab_skip "psql not available — assuming DB is managed externally" "infra"
 fi
 
+# Migration uses the same DSN pattern
+MIGRATE_DSN="${HXS_MIGRATE_DSN:-postgres://helix:helix_dev@127.0.0.1:5432/helix_seller?sslmode=disable}"
 echo "Running migrations..."
 if [ -f "$PROJECT_DIR/cmd/migrate/main.go" ]; then
-    (cd "$PROJECT_DIR" && go run cmd/migrate/main.go up 2>&1) && \
+    (cd "$PROJECT_DIR" && DATABASE_URL="$MIGRATE_DSN" go run cmd/migrate/main.go up 2>&1) && \
         ab_pass "Migrations applied" || \
         ab_fail "Migration failed"
 else
@@ -61,13 +63,16 @@ else
 fi
 
 echo "=== Step 2: Backend Server ==="
-if command -v go >/dev/null 2>&1; then
-    (cd "$PROJECT_DIR" && go run cmd/server/main.go &) &
+HEALTH_CHECK=$(curl -s -m 3 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$SERVER_PORT/health" 2>/dev/null || echo "000")
+if [ "$HEALTH_CHECK" = "200" ]; then
+    ab_pass "Backend server already healthy (HTTP 200)"
+elif command -v go >/dev/null 2>&1; then
+    (cd "$PROJECT_DIR" && DATABASE_URL="$MIGRATE_DSN" go run cmd/server/main.go &) &
     SERVER_PID=$!
-    sleep 3
+    sleep 5
     HEALTH_CHECK=$(curl -s -m 3 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$SERVER_PORT/health" 2>/dev/null || echo "000")
     if [ "$HEALTH_CHECK" = "200" ]; then
-        ab_pass "Backend server healthy (HTTP 200)"
+        ab_pass "Backend server started (HTTP 200)"
     else
         ab_skip "Backend server not responding (HTTP $HEALTH_CHECK) — start manually" "infra"
     fi

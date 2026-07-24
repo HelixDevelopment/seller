@@ -2,7 +2,7 @@ CREATE TYPE dispute_status AS ENUM ('warning_needs_response', 'under_review', 'l
 
 CREATE TABLE disputes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    transaction_id UUID NOT NULL REFERENCES transactions(id, created_at) ON DELETE RESTRICT,
+    transaction_id UUID NOT NULL REFERENCES transactions(id) ON DELETE RESTRICT,
     merchant_id UUID NOT NULL REFERENCES merchants(id) ON DELETE RESTRICT,
     provider VARCHAR(50) NOT NULL,
     provider_dispute_id VARCHAR(255) NOT NULL,
