@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -21,10 +22,10 @@ func NewDisputeRepo(db *pgxpool.Pool) *DisputeRepo {
 
 func (r *DisputeRepo) Create(ctx context.Context, d *model.Dispute) error {
 	_, err := r.db.Exec(ctx,
-		`INSERT INTO disputes (id, transaction_id, merchant_id, provider, provider_dispute_id, reason, status, amount, evidence_deadline, evidence_submitted_at, resolution, metadata, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())`,
+		`INSERT INTO disputes (id, transaction_id, merchant_id, provider, provider_dispute_id, reason, status, amount, evidence_deadline, evidence_submitted_at, resolution, evidence, metadata, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW())`,
 		d.ID, d.TransactionID, d.MerchantID, d.Provider, d.ProviderDisputeID, d.Reason, d.Status, d.Amount,
-		d.EvidenceDeadline, d.EvidenceSubmittedAt, d.Resolution, d.Metadata,
+		d.EvidenceDeadline, d.EvidenceSubmittedAt, d.Resolution, d.Evidence, d.Metadata,
 	)
 	if err != nil {
 		return fmt.Errorf("insert dispute: %w", err)
@@ -35,11 +36,11 @@ func (r *DisputeRepo) Create(ctx context.Context, d *model.Dispute) error {
 func (r *DisputeRepo) GetByID(ctx context.Context, id uuid.UUID) (*model.Dispute, error) {
 	d := &model.Dispute{}
 	err := r.db.QueryRow(ctx,
-		`SELECT id, transaction_id, merchant_id, provider, provider_dispute_id, reason, status, amount, evidence_deadline, evidence_submitted_at, resolution, metadata, created_at, updated_at
+		`SELECT id, transaction_id, merchant_id, provider, provider_dispute_id, reason, status, amount, evidence_deadline, evidence_submitted_at, resolution, evidence, metadata, created_at, updated_at
 		 FROM disputes WHERE id = $1`, id,
 	).Scan(
 		&d.ID, &d.TransactionID, &d.MerchantID, &d.Provider, &d.ProviderDisputeID, &d.Reason, &d.Status, &d.Amount,
-		&d.EvidenceDeadline, &d.EvidenceSubmittedAt, &d.Resolution, &d.Metadata, &d.CreatedAt, &d.UpdatedAt,
+		&d.EvidenceDeadline, &d.EvidenceSubmittedAt, &d.Resolution, &d.Evidence, &d.Metadata, &d.CreatedAt, &d.UpdatedAt,
 	)
 	if err == pgx.ErrNoRows {
 		return nil, model.ErrNotFound
@@ -65,7 +66,7 @@ func (r *DisputeRepo) ListByMerchant(ctx context.Context, merchantID uuid.UUID, 
 	}
 
 	rows, err := r.db.Query(ctx,
-		`SELECT id, transaction_id, merchant_id, provider, provider_dispute_id, reason, status, amount, evidence_deadline, evidence_submitted_at, resolution, metadata, created_at, updated_at
+		`SELECT id, transaction_id, merchant_id, provider, provider_dispute_id, reason, status, amount, evidence_deadline, evidence_submitted_at, resolution, evidence, metadata, created_at, updated_at
 		 FROM disputes WHERE merchant_id = $1
 		 ORDER BY created_at DESC
 		 LIMIT $2 OFFSET $3`,
@@ -81,7 +82,7 @@ func (r *DisputeRepo) ListByMerchant(ctx context.Context, merchantID uuid.UUID, 
 		d := &model.Dispute{}
 		if err := rows.Scan(
 			&d.ID, &d.TransactionID, &d.MerchantID, &d.Provider, &d.ProviderDisputeID, &d.Reason, &d.Status, &d.Amount,
-			&d.EvidenceDeadline, &d.EvidenceSubmittedAt, &d.Resolution, &d.Metadata, &d.CreatedAt, &d.UpdatedAt,
+			&d.EvidenceDeadline, &d.EvidenceSubmittedAt, &d.Resolution, &d.Evidence, &d.Metadata, &d.CreatedAt, &d.UpdatedAt,
 		); err != nil {
 			return nil, 0, fmt.Errorf("scan dispute: %w", err)
 		}
@@ -89,6 +90,19 @@ func (r *DisputeRepo) ListByMerchant(ctx context.Context, merchantID uuid.UUID, 
 	}
 
 	return disputes, total, nil
+}
+
+func (r *DisputeRepo) UpdateEvidence(ctx context.Context, id uuid.UUID, evidence json.RawMessage) error {
+	tag, err := r.db.Exec(ctx,
+		`UPDATE disputes SET evidence = $2, updated_at = NOW() WHERE id = $1`, id, evidence,
+	)
+	if err != nil {
+		return fmt.Errorf("update dispute evidence: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return model.ErrNotFound
+	}
+	return nil
 }
 
 func (r *DisputeRepo) UpdateStatus(ctx context.Context, id uuid.UUID, status model.DisputeStatus) error {

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -62,6 +63,17 @@ func (s *DisputeService) AddEvidence(ctx context.Context, disputeID uuid.UUID, e
 	}
 	now := time.Now()
 	d.EvidenceSubmittedAt = &now
+
+	evidence := map[string]interface{}{
+		"url":          evidenceURL,
+		"submitted_at": now,
+	}
+	evidenceJSON, _ := json.Marshal(evidence)
+	d.Evidence = evidenceJSON
+
+	if err := s.disputeRepo.UpdateEvidence(ctx, disputeID, evidenceJSON); err != nil {
+		return nil, err
+	}
 	if err := s.disputeRepo.UpdateStatus(ctx, disputeID, model.DisputeStatusUnderReview); err != nil {
 		return nil, err
 	}

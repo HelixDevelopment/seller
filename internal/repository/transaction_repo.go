@@ -98,6 +98,20 @@ func (r *TransactionRepo) ListByMerchant(ctx context.Context, merchantID uuid.UU
 	return txns, total, nil
 }
 
+func (r *TransactionRepo) Update(ctx context.Context, t *model.Transaction) error {
+	tag, err := r.db.Exec(ctx,
+		`UPDATE transactions SET provider = $2, provider_transaction_id = $3, status = $4, error_code = $5, error_message = $6, fee_amount = $7, net_amount = $8, processed_at = $9, updated_at = NOW() WHERE id = $1`,
+		t.ID, t.Provider, t.ProviderTransactionID, t.Status, t.ErrorCode, t.ErrorMessage, t.FeeAmount, t.NetAmount, t.ProcessedAt,
+	)
+	if err != nil {
+		return fmt.Errorf("update transaction: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return model.ErrNotFound
+	}
+	return nil
+}
+
 func (r *TransactionRepo) UpdateStatus(ctx context.Context, id uuid.UUID, status model.TransactionStatus) error {
 	tag, err := r.db.Exec(ctx,
 		`UPDATE transactions SET status = $2, updated_at = NOW() WHERE id = $1`, id, status,

@@ -21,7 +21,7 @@ func TestNewRouter(t *testing.T) {
 	r := NewRouter(
 		logger,
 		nil, nil, nil, 0,
-		nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 		nil, nil, nil, nil, nil, nil, nil,
 		nil, nil, nil,
 		wsHandler,
@@ -53,6 +53,7 @@ func TestRouter_HealthAndEndpoints(t *testing.T) {
 		logger,
 		func(c *gin.Context) { c.Next() }, nil, nil, 100,
 		&AuthHandler{}, &UserHandler{}, &ApiKeyHandler{}, &MerchantHandler{},
+		&ProductHandler{},
 		&PaymentHandler{}, &CustomerHandler{}, &SubscriptionHandler{},
 		&InvoiceHandler{}, &PayoutHandler{}, &DisputeHandler{}, &WebhookHandler{},
 		&AnalyticsHandler{}, &ProviderHandler{}, &PaymentMethodHandler{},

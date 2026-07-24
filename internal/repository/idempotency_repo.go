@@ -4,10 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-
-	"github.com/helix-seller/helix-seller/internal/model"
 )
 
 type IdempotencyRepo struct {
@@ -18,35 +15,18 @@ func NewIdempotencyRepo(db *pgxpool.Pool) *IdempotencyRepo {
 	return &IdempotencyRepo{db: db}
 }
 
-func (r *IdempotencyRepo) CheckAndSave(ctx context.Context, key, merchantID string) (*model.Transaction, bool, error) {
-	tx, err := r.db.Begin(ctx)
-	if err != nil {
-		return nil, false, fmt.Errorf("idempotency: begin tx: %w", err)
-	}
-	defer tx.Rollback(ctx)
-
-	existing := &model.Transaction{}
-	err = tx.QueryRow(ctx,
-		`SELECT id, merchant_id, customer_id, provider, provider_transaction_id, type, amount,
-		        currency, status, payment_method_id, idempotency_key, description, metadata,
-		        error_code, error_message, fee_amount, net_amount, processed_at, created_at, updated_at
-		 FROM transactions
-		 WHERE idempotency_key = $1 AND merchant_id = $2
-		 LIMIT 1`,
+func (r *IdempotencyRepo) CheckAndSave(ctx context.Context, key, merchantID string) (bool, error) {
+	tag, err := r.db.Exec(ctx,
+		`INSERT INTO idempotency_keys (key_hash, response, status_code, merchant_id, expires_at)
+		 VALUES ($1, '{}'::jsonb, 0, $2, NOW() + INTERVAL '24 hours')
+		 ON CONFLICT (key_hash) DO NOTHING`,
 		key, merchantID,
-	).Scan(
-		&existing.ID, &existing.MerchantID, &existing.CustomerID, &existing.Provider,
-		&existing.ProviderTransactionID, &existing.Type, &existing.Amount, &existing.Currency,
-		&existing.Status, &existing.PaymentMethodID, &existing.IdempotencyKey, &existing.Description,
-		&existing.Metadata, &existing.ErrorCode, &existing.ErrorMessage, &existing.FeeAmount,
-		&existing.NetAmount, &existing.ProcessedAt, &existing.CreatedAt, &existing.UpdatedAt,
 	)
-	if err == nil {
-		return existing, true, tx.Commit(ctx)
+	if err != nil {
+		return false, fmt.Errorf("idempotency: save: %w", err)
 	}
-	if err != pgx.ErrNoRows {
-		return nil, false, fmt.Errorf("idempotency: query: %w", err)
+	if tag.RowsAffected() == 0 {
+		return false, nil
 	}
-
-	return nil, false, tx.Commit(ctx)
+	return true, nil
 }

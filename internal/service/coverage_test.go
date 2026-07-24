@@ -815,7 +815,7 @@ func TestInvoiceService_Constructor_NilDependencies(t *testing.T) {
 // --- Payment additional tests ---
 
 func TestPaymentService_Constructor_NilDependencies(t *testing.T) {
-	svc := NewPaymentService(nil, nil, nil, nil)
+	svc := NewPaymentService(nil, nil, nil, nil, nil)
 	if svc == nil {
 		t.Fatal("expected non-nil PaymentService")
 	}

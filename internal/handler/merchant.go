@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -83,10 +84,17 @@ func (h *MerchantHandler) UpdateMerchant(c *gin.Context) {
 		return
 	}
 	var req struct {
-		LegalName string `json:"legal_name"`
-		TradeName string `json:"trade_name"`
-		Email     string `json:"email"`
-		Phone     string `json:"phone"`
+		LegalName string          `json:"legal_name"`
+		TradeName string          `json:"trade_name"`
+		Email     string          `json:"email"`
+		Phone     string          `json:"phone"`
+		Status    string          `json:"status"`
+		KycStatus string          `json:"kyc_status"`
+		Country   string          `json:"country"`
+		Currency  string          `json:"currency"`
+		Timezone  string          `json:"timezone"`
+		Branding  json.RawMessage `json:"branding"`
+		Settings  json.RawMessage `json:"settings"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -108,6 +116,35 @@ func (h *MerchantHandler) UpdateMerchant(c *gin.Context) {
 	}
 	if req.Phone != "" {
 		merchant.Phone = req.Phone
+	}
+	if req.Status != "" {
+		merchant.Status = model.MerchantStatus(req.Status)
+	}
+	if req.KycStatus != "" {
+		merchant.KycStatus = model.KycStatus(req.KycStatus)
+	}
+	if req.Country != "" {
+		if len(req.Country) != 2 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "country must be a 2-letter code"})
+			return
+		}
+		merchant.Country = req.Country
+	}
+	if req.Currency != "" {
+		if len(req.Currency) != 3 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "currency must be a 3-letter code"})
+			return
+		}
+		merchant.Currency = req.Currency
+	}
+	if req.Timezone != "" {
+		merchant.Timezone = req.Timezone
+	}
+	if req.Branding != nil {
+		merchant.Branding = req.Branding
+	}
+	if req.Settings != nil {
+		merchant.Settings = req.Settings
 	}
 	if err := h.merchantRepo.Update(c.Request.Context(), merchant); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update merchant"})

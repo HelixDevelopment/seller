@@ -19,6 +19,7 @@ import (
 	"github.com/helix-seller/helix-seller/internal/eventbus"
 	"github.com/helix-seller/helix-seller/internal/handler"
 	"github.com/helix-seller/helix-seller/internal/middleware"
+	"github.com/helix-seller/helix-seller/internal/provider"
 	"github.com/helix-seller/helix-seller/internal/repository"
 	"github.com/helix-seller/helix-seller/internal/service"
 	"github.com/helix-seller/helix-seller/internal/websocket"
@@ -71,6 +72,9 @@ func main() {
 	providerRepo := repository.NewProviderConfigRepo(postgres.Pool)
 	auditRepo := repository.NewAuditLogRepo(postgres.Pool)
 
+	// Provider factory
+	providerFactory := provider.NewFactory(cfg)
+
 	// Services
 	backgroundSvc := service.NewBackgroundService(postgres.Pool, logger, cfg.BackgroundWorkers, cfg.PollInterval)
 	authSvc := service.NewAuthService(userRepo)
@@ -80,7 +84,7 @@ func main() {
 	}
 	mfaSvc := service.NewMFAService()
 	apiKeySvc := service.NewApiKeyService(postgres.Pool)
-	paymentSvc := service.NewPaymentService(txRepo, pmRepo, eb, logger)
+	paymentSvc := service.NewPaymentService(txRepo, pmRepo, eb, logger, providerFactory)
 	subscriptionSvc := service.NewSubscriptionService(subscriptionRepo, eb, logger)
 	invoiceSvc := service.NewInvoiceService(invoiceRepo, eb, logger)
 	payoutSvc := service.NewPayoutService(payoutRepo, eb, logger)
@@ -95,6 +99,9 @@ func main() {
 	userHandler := handler.NewUserHandler(userRepo)
 	apiKeyHandler := handler.NewApiKeyHandler(apiKeySvc)
 	merchantHandler := handler.NewMerchantHandler(merchantRepo)
+	productRepo := repository.NewProductRepo(postgres.Pool)
+	productSvc := service.NewProductService(productRepo, logger)
+	productHandler := handler.NewProductHandler(productSvc)
 	paymentHandler := handler.NewPaymentHandler(paymentSvc)
 	customerHandler := handler.NewCustomerHandler(customerRepo, pmRepo)
 	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionSvc)
@@ -133,6 +140,7 @@ func main() {
 		userHandler,
 		apiKeyHandler,
 		merchantHandler,
+		productHandler,
 		paymentHandler,
 		customerHandler,
 		subscriptionHandler,
@@ -158,6 +166,12 @@ func main() {
 	router.Use(middleware.SecurityHeaders())
 	router.Use(middleware.RequestSizeLimit(10 << 20)) // 10 MB max
 	router.Use(middleware.Logger(logger))
+
+	// Background task handlers
+	backgroundSvc.RegisterHandler(service.NewPayoutTaskHandler(payoutRepo, logger))
+	backgroundSvc.RegisterHandler(service.NewReconciliationTaskHandler(txRepo, logger))
+	backgroundSvc.RegisterHandler(service.NewInvoiceTaskHandler(invoiceRepo, logger))
+	backgroundSvc.RegisterHandler(service.NewWebhookDeliveryTaskHandler(webhookConfigRepo, logger))
 
 	// Start background worker
 	ctx, cancel := context.WithCancel(context.Background())

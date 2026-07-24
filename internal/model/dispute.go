@@ -18,18 +18,19 @@ const (
 )
 
 type Dispute struct {
-	ID                    uuid.UUID      `json:"id"`
-	TransactionID         uuid.UUID      `json:"transaction_id"`
-	MerchantID            uuid.UUID      `json:"merchant_id"`
-	Provider              string         `json:"provider"`
-	ProviderDisputeID     string         `json:"provider_dispute_id"`
-	Reason                string         `json:"reason"`
-	Status                DisputeStatus  `json:"status"`
-	Amount                int64          `json:"amount"`
-	EvidenceDeadline      *time.Time     `json:"evidence_deadline"`
-	EvidenceSubmittedAt   *time.Time     `json:"evidence_submitted_at"`
-	Resolution            string         `json:"resolution"`
+	ID                    uuid.UUID       `json:"id"`
+	TransactionID         uuid.UUID       `json:"transaction_id"`
+	MerchantID            uuid.UUID       `json:"merchant_id"`
+	Provider              string          `json:"provider"`
+	ProviderDisputeID     string          `json:"provider_dispute_id"`
+	Reason                string          `json:"reason"`
+	Status                DisputeStatus   `json:"status"`
+	Amount                int64           `json:"amount"`
+	EvidenceDeadline      *time.Time      `json:"evidence_deadline"`
+	EvidenceSubmittedAt   *time.Time      `json:"evidence_submitted_at"`
+	Resolution            string          `json:"resolution"`
+	Evidence              json.RawMessage `json:"evidence"`
 	Metadata              json.RawMessage `json:"metadata"`
-	CreatedAt             time.Time      `json:"created_at"`
-	UpdatedAt             time.Time      `json:"updated_at"`
+	CreatedAt             time.Time       `json:"created_at"`
+	UpdatedAt             time.Time       `json:"updated_at"`
 }

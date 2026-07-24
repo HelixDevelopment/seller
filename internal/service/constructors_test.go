@@ -7,7 +7,7 @@ import (
 )
 
 func TestPaymentService_Constructor(t *testing.T) {
-	svc := NewPaymentService(nil, nil, nil, zap.NewNop())
+	svc := NewPaymentService(nil, nil, nil, zap.NewNop(), nil)
 	if svc == nil {
 		t.Fatal("expected non-nil PaymentService")
 	}
@@ -38,6 +38,13 @@ func TestDisputeService_Constructor(t *testing.T) {
 	svc := NewDisputeService(nil, nil, zap.NewNop())
 	if svc == nil {
 		t.Fatal("expected non-nil DisputeService")
+	}
+}
+
+func TestProductService_Constructor(t *testing.T) {
+	svc := NewProductService(nil, zap.NewNop())
+	if svc == nil {
+		t.Fatal("expected non-nil ProductService")
 	}
 }
 
@@ -128,6 +135,34 @@ func TestBackgroundTaskRow_Fields(t *testing.T) {
 	}
 	if task.Attempts != 2 {
 		t.Errorf("Attempts = %d", task.Attempts)
+	}
+}
+
+func TestPayoutTaskHandler_Constructor(t *testing.T) {
+	h := NewPayoutTaskHandler(nil, zap.NewNop())
+	if h == nil {
+		t.Fatal("expected non-nil PayoutTaskHandler")
+	}
+}
+
+func TestReconciliationTaskHandler_Constructor(t *testing.T) {
+	h := NewReconciliationTaskHandler(nil, zap.NewNop())
+	if h == nil {
+		t.Fatal("expected non-nil ReconciliationTaskHandler")
+	}
+}
+
+func TestInvoiceTaskHandler_Constructor(t *testing.T) {
+	h := NewInvoiceTaskHandler(nil, zap.NewNop())
+	if h == nil {
+		t.Fatal("expected non-nil InvoiceTaskHandler")
+	}
+}
+
+func TestWebhookDeliveryTaskHandler_Constructor(t *testing.T) {
+	h := NewWebhookDeliveryTaskHandler(nil, zap.NewNop())
+	if h == nil {
+		t.Fatal("expected non-nil WebhookDeliveryTaskHandler")
 	}
 }
 
