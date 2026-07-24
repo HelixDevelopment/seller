@@ -42,13 +42,18 @@ on_exit() {
 trap on_exit EXIT
 
 echo "=== Step 1: Database ==="
-if command -v psql >/dev/null 2>&1; then
+if command -v podman >/dev/null 2>&1 && podman ps --format '{{.Names}}' 2>/dev/null | grep -q '^helix-postgres$'; then
+    echo "Resetting database schema via podman..."
+    podman exec helix-postgres psql -U helix -d helix_seller -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;" 2>&1 && \
+        ab_pass "Database schema reset via podman exec" || \
+        ab_skip "Could not reset DB schema via podman" "infra"
+elif command -v psql >/dev/null 2>&1; then
     echo "Resetting database schema..."
     psql "$POSTGRES_DSN" -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;" 2>/dev/null && \
         ab_pass "Database schema reset" || \
         ab_skip "Could not reset DB schema" "infra"
 else
-    ab_skip "psql not available — assuming DB is managed externally" "infra"
+    ab_skip "No podman or psql available — assuming DB is managed externally" "infra"
 fi
 
 # Migration uses the same DSN pattern

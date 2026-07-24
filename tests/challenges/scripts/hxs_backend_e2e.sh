@@ -31,13 +31,38 @@ trap on_exit EXIT
 echo "=== HXS Backend E2E Tests ==="
 
 echo "--- Auth ---"
-REG=$(curl -s -m 5 -X POST "$API_URL/api/v1/auth/register" \
+
+# First check if user exists by trying login
+E2E_LOGIN=$(curl -s -m 5 -X POST "$API_URL/api/v1/auth/login" \
     -H 'Content-Type: application/json' \
-    -d "{\"email\":\"e2e@helix.test\",\"password\":\"testpassword123!\",\"name\":\"E2E Tester\"}" 2>/dev/null)
-if echo "$REG" | grep -qiE '"(id|token)"'; then
-    ab_pass "Registration succeeds for new user"
+    -d "{\"email\":\"e2e@helix.test\",\"password\":\"testpassword123!\"}" 2>/dev/null)
+if echo "$E2E_LOGIN" | grep -qiE '"token|"access_token'; then
+    ab_pass "User e2e@helix.test already exists and can login"
+elif echo "$E2E_LOGIN" | grep -qiE "invalid credentials|not found|unauthorized"; then
+    # User doesn't exist, try to register
+    REG=$(curl -s -m 5 -X POST "$API_URL/api/v1/auth/register" \
+        -H 'Content-Type: application/json' \
+        -d "{\"email\":\"e2e@helix.test\",\"password\":\"testpassword123!\",\"name\":\"E2E Tester\"}" 2>/dev/null)
+    if echo "$REG" | grep -qiE '"(id|token)"'; then
+        ab_pass "Registration succeeds for new user"
+    else
+        ab_fail "Registration failed: $(echo "$REG" | head -c 80)"
+    fi
 else
-    ab_skip "Registration endpoint not available or returned: $(echo "$REG" | head -c 80)" "infra"
+    # Unknown response — fall back to register attempt
+    REG=$(curl -s -m 5 -X POST "$API_URL/api/v1/auth/register" \
+        -H 'Content-Type: application/json' \
+        -d "{\"email\":\"e2e@helix.test\",\"password\":\"testpassword123!\",\"name\":\"E2E Tester\"}" 2>/dev/null)
+    if echo "$REG" | grep -qiE '"(id|token)"'; then
+        ab_pass "Registration succeeds for new user"
+    else
+        REG_ERR=$(echo "$REG" | grep -oE '"error"[[:space:]]*:[[:space:]]*"[^"]+"' | head -1 | sed 's/.*: *"//;s/"//')
+        if echo "$REG_ERR" | grep -qi "already exists"; then
+            ab_pass "User already exists (login works) — fallback confirmed"
+        else
+            ab_fail "Auth failed: $REG_ERR"
+        fi
+    fi
 fi
 
 LOGIN=$(curl -s -m 5 -X POST "$API_URL/api/v1/auth/login" \

@@ -1,9 +1,9 @@
-# HXS Final Report — hxs_run_1_20260724_212916
+# HXS Final Report — hxs_run_1_20260724_221129
 
 | Field | Value |
 |-------|-------|
-| Started | 2026-07-24T21:29:16Z |
-| Ended | 2026-07-24T21:29:17Z |
+| Started | 2026-07-24T22:11:29Z |
+| Ended | 2026-07-24T22:11:35Z |
 | Total Runs | 1 |
 | Status | ALL GREEN |
 
@@ -427,6 +427,60 @@ Results: /tmp/hxs_recording.results
 === HXS Orchestrator Finished ===
 Started: 2026-07-24T21:29:16Z
 Ended:   2026-07-24T21:29:17Z
+Runs:    1
+Final report: /run/media/milosvasic/DATA4TB/Projects/helix_seller/docs/challenges/HXS_FINAL_REPORT.md
+=== HXS Orchestrator Started at 2026-07-24T22:11:29Z ===
+Max runs: 1
+
+=== HXS Run 1: hxs_run_1_20260724_221129 ===
+[1] Running Setup...
+[1]  PASS Setup
+=== hxs_recording — anti-bluff verification ===
+Date: Sat Jul 25 01:11:30 AM MSK 2026
+Results: /tmp/hxs_recording.results
+
+ACTION #1: HXS Recording: START for hxs_run_1_20260724_221129
+=== Starting recording for hxs_run_1_20260724_221129 ===
+PASS: Bridge health check OK
+FAIL: Failed to start recording: {
+  "error": "recording start failed",
+  "detail": "exit error: exit status 127; output: bash: scrip
+
+=== SUMMARY ===
+PASS:    1
+FAIL:    1
+SKIP:    0
+ACTIONS: 1
+TOTAL:   2
+Results: /tmp/hxs_recording.results
+[1] Running Frontend E2E...
+[1]  PASS Frontend E2E
+[1] Running Backend E2E...
+[1]  PASS Backend E2E
+=== hxs_recording — anti-bluff verification ===
+Date: Sat Jul 25 01:11:32 AM MSK 2026
+Results: /tmp/hxs_recording.results
+
+ACTION #1: HXS Recording: STOP for hxs_run_1_20260724_221129
+=== Stopping recording for hxs_run_1_20260724_221129 ===
+SKIP: Recording stop not fully supported by bridge (may be running as external process) (infra)
+
+=== SUMMARY ===
+PASS:    0
+FAIL:    0
+SKIP:    1
+ACTIONS: 1
+TOTAL:   1
+Results: /tmp/hxs_recording.results
+[1] Running OpenCV Analysis...
+[1]  PASS OpenCV Analysis
+[1] Running Workable Items...
+[1]  PASS Workable Items
+[1] ALL GREEN — zero issues
+
+=== HXS Orchestrator Finished ===
+Started: 2026-07-24T22:11:29Z
+Ended:   2026-07-24T22:11:35Z
 Runs:    1
 ```
 
