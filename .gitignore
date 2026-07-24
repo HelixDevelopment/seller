@@ -28,6 +28,7 @@ go.work.sum
 *.out
 profile.cov
 server
+build/
 *.so
 *.test
 # Test binary, built with `go test -c`
