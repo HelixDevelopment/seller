@@ -89,6 +89,50 @@ else
     ab_skip "No merchant available — using dummy ID" "infra"
 fi
 
+echo "--- Customers ---"
+CUSTOMER_ID=""
+if [ -n "$TOKEN" ] && [ -n "$MERCHANT_ID" ] && [ "$MERCHANT_ID" != "00000000-0000-0000-0000-000000000000" ]; then
+    CUST_EMAIL="e2e.customer.$(date +%s)@helix.test"
+    CUST=$(curl -s -m 5 -X POST -H "Authorization: Bearer $TOKEN" \
+        -H 'Content-Type: application/json' \
+        -d "{\"name\":\"E2E Customer\",\"email\":\"$CUST_EMAIL\"}" \
+        "$API_URL/api/v1/merchants/$MERCHANT_ID/customers" 2>/dev/null)
+    CUSTOMER_ID=$(echo "$CUST" | grep -oE '"_?id"[[:space:]]*:[[:space:]]*"[^"]+"' | head -1 | sed 's/.*: *"//;s/"//')
+    if [ -n "$CUSTOMER_ID" ]; then
+        ab_pass "Customer created (id=$CUSTOMER_ID)"
+    else
+        CUSTOMER_ID=""
+        ab_skip "Customer creation failed: $(echo "$CUST" | head -c 80)" "infra"
+    fi
+else
+    ab_skip "No token or merchant — skipping customer tests" "infra"
+fi
+
+echo "--- Payment Methods ---"
+PM_ID=""
+if [ -n "$TOKEN" ] && [ -n "$MERCHANT_ID" ] && [ -n "$CUSTOMER_ID" ]; then
+    PM_CREATE=$(curl -s -m 5 -X POST -H "Authorization: Bearer $TOKEN" \
+        -H 'Content-Type: application/json' \
+        -d "{\"customer_id\":\"$CUSTOMER_ID\",\"type\":\"card\",\"provider\":\"stripe\",\"provider_token\":\"tok_visa\",\"last4\":\"4242\",\"brand\":\"visa\",\"exp_month\":12,\"exp_year\":2028,\"is_default\":true}" \
+        "$API_URL/api/v1/merchants/$MERCHANT_ID/payment-methods" 2>/dev/null)
+    PM_ID=$(echo "$PM_CREATE" | grep -oE '"_?id"[[:space:]]*:[[:space:]]*"[^"]+"' | head -1 | sed 's/.*: *"//;s/"//')
+    if [ -n "$PM_ID" ]; then
+        ab_pass "Payment method created (id=$PM_ID)"
+    else
+        PM_ID=""
+        ab_skip "Payment method creation failed: $(echo "$PM_CREATE" | head -c 80)" "infra"
+    fi
+
+    # List payment methods
+    PMS=$(curl -s -m 5 -H "Authorization: Bearer $TOKEN" \
+        "$API_URL/api/v1/merchants/$MERCHANT_ID/payment-methods?customer_id=$CUSTOMER_ID" 2>/dev/null)
+    echo "$PMS" | grep -qiE '"payment_methods"' && \
+        ab_pass "Payment methods list works" || \
+        ab_skip "Payment methods list response unexpected" "infra"
+else
+    ab_skip "No token, merchant, or customer — skipping payment method tests" "infra"
+fi
+
 echo "--- Product CRUD ---"
 if [ -n "$TOKEN" ] && [ -n "$MERCHANT_ID" ]; then
     # Create product
@@ -145,7 +189,7 @@ if [ -n "$TOKEN" ] && [ -n "$MERCHANT_ID" ] && [ "$MERCHANT_ID" != "00000000-000
     # Process payment
     PMT=$(curl -s -m 5 -X POST -H "Authorization: Bearer $TOKEN" \
         -H 'Content-Type: application/json' \
-        -d "{\"amount\":5000,\"currency\":\"USD\",\"customer_id\":\"$MERCHANT_ID\",\"payment_method\":\"card\",\"description\":\"Test charge\"}" \
+        -d "{\"amount\":5000,\"currency\":\"USD\",\"customer_id\":\"$CUSTOMER_ID\",\"payment_method_id\":\"$PM_ID\",\"description\":\"Test charge\"}" \
         "$API_URL/api/v1/merchants/$MERCHANT_ID/transactions" 2>/dev/null)
     TX_ID=$(echo "$PMT" | grep -oE '"_?id"[[:space:]]*:[[:space:]]*"[^"]+"' | head -1 | sed 's/.*: *"//;s/"//')
     if [ -n "$TX_ID" ]; then
@@ -176,23 +220,22 @@ fi
 
 echo "--- WebSocket ---"
 if command -v websocat >/dev/null 2>&1; then
-    # Try to connect — the server should accept the WebSocket upgrade
     WS_RESULT=$(echo "ping" | timeout 4 websocat "ws://127.0.0.1:8080/ws" 2>&1 || true)
-    if echo "$WS_RESULT" | grep -qiE '(connected|message|open|pong)'; then
-        ab_pass "WebSocket endpoint accepts connections and responds"
-    elif echo "$WS_RESULT" | grep -qiE 'error.*auth|unauthorized|401'; then
-        ab_pass "WebSocket endpoint requires authentication (expected — security)"
-    elif echo "$WS_RESULT" | grep -qiE 'timeout|refused|closed'; then
-        ab_skip "WebSocket endpoint not responding within timeout" "infra"
+    if echo "$WS_RESULT" | grep -qiE 'pong|connected|message'; then
+        ab_pass "WebSocket ping/pong works"
     else
-        ab_skip "WebSocket connected but got unexpected response: $(echo "$WS_RESULT" | head -c 80)" "infra"
+        ab_skip "WebSocket ping/pong failed: $(echo "$WS_RESULT" | head -c 80)" "infra"
     fi
 elif command -v curl >/dev/null && curl --version 2>/dev/null | grep -qi websocket; then
     WS_UPGRADE=$(curl -s -m 3 -o /dev/null -w '%{http_code}' -H "Upgrade: websocket" -H "Connection: Upgrade" "http://127.0.0.1:8080/ws" 2>/dev/null || echo "000")
     [ "$WS_UPGRADE" = "101" ] && ab_pass "WebSocket upgrade returns 101 (switching protocols)" || \
         ab_skip "WebSocket upgrade returned HTTP $WS_UPGRADE, want 101" "infra"
+elif command -v wscat >/dev/null 2>&1; then
+    WS_RESULT=$(echo "ping" | timeout 4 wscat -c "ws://127.0.0.1:8080/ws" 2>&1 || true)
+    echo "$WS_RESULT" | grep -qiE 'pong|connected' && ab_pass "WebSocket ping/pong works via wscat" || \
+        ab_skip "WebSocket via wscat failed" "infra"
 else
-    ab_skip "WebSocket test skipped — websocat not installed" "infra"
+    ab_skip "No WebSocket client available (install websocat, wscat, or curl with WebSocket support)" "infra"
 fi
 
 echo

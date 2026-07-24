@@ -20,10 +20,14 @@ func NewCustomerRepo(db *pgxpool.Pool) *CustomerRepo {
 }
 
 func (r *CustomerRepo) Create(ctx context.Context, c *model.Customer) error {
+	var externalID any = c.ExternalID
+	if c.ExternalID == "" {
+		externalID = nil
+	}
 	_, err := r.db.Exec(ctx,
 		`INSERT INTO customers (id, merchant_id, external_id, name, email, phone, metadata, created_at, updated_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())`,
-		c.ID, c.MerchantID, c.ExternalID, c.Name, c.Email, c.Phone, c.Metadata,
+		c.ID, c.MerchantID, externalID, c.Name, c.Email, c.Phone, c.Metadata,
 	)
 	return err
 }

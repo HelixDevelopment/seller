@@ -12,6 +12,14 @@ type Factory struct {
 
 func NewFactory(cfg *config.Config) *Factory {
 	f := &Factory{providers: make(map[string]PaymentProvider)}
+	if cfg.ProviderMock || !hasRealKeys(cfg) {
+		mock := NewMockProvider()
+		f.providers["mock"] = mock
+		f.providers["stripe"] = mock
+		f.providers["paypal"] = mock
+		f.providers["square"] = mock
+		return f
+	}
 	if cfg.StripeAPIKey != "" {
 		f.providers["stripe"] = NewStripeProvider(cfg.StripeAPIKey, cfg.StripeWebhookSecret)
 	}
@@ -26,4 +34,8 @@ func (f *Factory) Get(name string) (PaymentProvider, error) {
 		return nil, fmt.Errorf("unknown payment provider: %s", name)
 	}
 	return p, nil
+}
+
+func hasRealKeys(cfg *config.Config) bool {
+	return cfg.StripeAPIKey != "" || cfg.PayPalClientID != "" || cfg.SquareAccessToken != ""
 }

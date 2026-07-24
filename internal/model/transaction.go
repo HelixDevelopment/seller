@@ -37,11 +37,11 @@ type Transaction struct {
 	Currency              string            `json:"currency"`
 	Status                TransactionStatus `json:"status"`
 	PaymentMethodID       uuid.UUID         `json:"payment_method_id"`
-	IdempotencyKey        string            `json:"idempotency_key"`
-	Description           string            `json:"description"`
+	IdempotencyKey        *string           `json:"idempotency_key"`
+	Description           *string           `json:"description"`
 	Metadata              json.RawMessage   `json:"metadata"`
-	ErrorCode             string            `json:"error_code"`
-	ErrorMessage          string            `json:"error_message"`
+	ErrorCode             *string           `json:"error_code"`
+	ErrorMessage          *string           `json:"error_message"`
 	FeeAmount             int64             `json:"fee_amount"`
 	NetAmount             *int64            `json:"net_amount"`
 	ProcessedAt           *time.Time        `json:"processed_at"`

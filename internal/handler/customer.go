@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -41,6 +42,7 @@ func (h *CustomerHandler) CreateCustomer(c *gin.Context) {
 		Name:       req.Name,
 		Email:      req.Email,
 		Phone:      req.Phone,
+		Metadata:   json.RawMessage("{}"),
 	}
 	if err := h.customerRepo.Create(c.Request.Context(), customer); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create customer"})

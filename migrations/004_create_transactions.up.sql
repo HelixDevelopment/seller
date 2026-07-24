@@ -25,7 +25,7 @@ CREATE TABLE transactions (
     PRIMARY KEY (id)
 );
 
-CREATE UNIQUE INDEX idx_transactions_provider_transaction ON transactions (provider, provider_transaction_id);
+CREATE UNIQUE INDEX idx_transactions_provider_transaction ON transactions (provider, provider_transaction_id) WHERE status NOT IN ('pending', 'failed', 'cancelled');
 CREATE UNIQUE INDEX idx_transactions_idempotency_key ON transactions (idempotency_key, created_at) WHERE idempotency_key IS NOT NULL;
 CREATE INDEX idx_transactions_merchant_id ON transactions (merchant_id, created_at);
 CREATE INDEX idx_transactions_customer_id ON transactions (customer_id, created_at);

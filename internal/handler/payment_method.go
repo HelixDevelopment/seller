@@ -48,6 +48,9 @@ func (h *PaymentMethodHandler) CreatePaymentMethod(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid customer id"})
 		return
 	}
+	if req.Metadata == nil {
+		req.Metadata = json.RawMessage("{}")
+	}
 	pm := &model.PaymentMethod{
 		ID:             uuid.New(),
 		CustomerID:     customerID,

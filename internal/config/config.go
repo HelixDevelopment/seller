@@ -31,6 +31,8 @@ type Config struct {
 	SquareApplicationID string
 	SquareWebhookSigKey string
 
+	ProviderMock bool
+
 	RateLimitRPS int
 
 	BackgroundWorkers    int
@@ -65,6 +67,8 @@ func Load() *Config {
 		SquareAccessToken:  getEnv("SQUARE_ACCESS_TOKEN", ""),
 		SquareApplicationID: getEnv("SQUARE_APPLICATION_ID", ""),
 		SquareWebhookSigKey: getEnv("SQUARE_WEBHOOK_SIGNATURE_KEY", ""),
+
+		ProviderMock: getEnv("PROVIDER_MOCK", "") == "true",
 
 		RateLimitRPS: getEnvAsInt("RATE_LIMIT_RPS", 100),
 

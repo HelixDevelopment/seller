@@ -50,7 +50,7 @@ func (h *PaymentHandler) ProcessPayment(c *gin.Context) {
 
 	tx, err := h.paymentSvc.ProcessPayment(c.Request.Context(), merchantID, customerID, pmID, req.Amount, req.Currency, req.IdempotencyKey)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "payment failed"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusCreated, tx)
@@ -74,7 +74,7 @@ func (h *PaymentHandler) ListTransactions(c *gin.Context) {
 
 	txns, total, err := h.paymentSvc.ListTransactions(c.Request.Context(), merchantID, page, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list transactions"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"transactions": txns, "total": total})

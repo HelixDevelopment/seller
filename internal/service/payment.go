@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -68,7 +69,8 @@ func (s *PaymentService) ProcessPayment(ctx context.Context, merchantID, custome
 		Status:          model.TransactionStatusPending,
 		Type:            model.TransactionTypeCharge,
 		Provider:        pm.Provider,
-		IdempotencyKey:  idempotencyKey,
+		IdempotencyKey:  &idempotencyKey,
+		Metadata:        json.RawMessage("{}"),
 	}
 	if err := s.txRepo.Create(ctx, tx); err != nil {
 		return nil, err
@@ -77,7 +79,8 @@ func (s *PaymentService) ProcessPayment(ctx context.Context, merchantID, custome
 	prov, err := s.providerFactory.Get(pm.Provider)
 	if err != nil {
 		tx.Status = model.TransactionStatusFailed
-		tx.ErrorMessage = err.Error()
+		errMsg := err.Error()
+		tx.ErrorMessage = &errMsg
 		if updateErr := s.txRepo.Update(ctx, tx); updateErr != nil {
 			s.logger.Error("failed to persist transaction after provider lookup failure", zap.Error(updateErr))
 		}
@@ -97,7 +100,8 @@ func (s *PaymentService) ProcessPayment(ctx context.Context, merchantID, custome
 	})
 	if err != nil {
 		tx.Status = model.TransactionStatusFailed
-		tx.ErrorMessage = err.Error()
+		errMsg := err.Error()
+		tx.ErrorMessage = &errMsg
 		if updateErr := s.txRepo.Update(ctx, tx); updateErr != nil {
 			s.logger.Error("failed to persist transaction after charge failure", zap.Error(updateErr))
 		}
@@ -174,7 +178,7 @@ func (s *PaymentService) Refund(ctx context.Context, transactionID uuid.UUID, am
 		Type:                  model.TransactionTypeRefund,
 		Provider:              refundResp.Provider,
 		ProviderTransactionID: refundResp.ProviderTransactionID,
-		Description:           reason,
+		Description:           &reason,
 	}
 	if err := s.txRepo.Create(ctx, refund); err != nil {
 		return nil, err

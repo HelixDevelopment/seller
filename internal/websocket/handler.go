@@ -57,9 +57,16 @@ func (h *WSHandler) readPump(client *Client) {
 		client.Conn.Close()
 	}()
 	for {
-		_, _, err := client.Conn.ReadMessage()
+		messageType, message, err := client.Conn.ReadMessage()
 		if err != nil {
 			break
+		}
+		msg := string(message)
+		if messageType == websocket.PingMessage || msg == "ping" || msg == "ping\n" {
+			if err := client.Conn.WriteMessage(websocket.TextMessage, []byte("pong")); err != nil {
+				break
+			}
+			continue
 		}
 	}
 }
