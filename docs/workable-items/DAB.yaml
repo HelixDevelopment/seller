@@ -2,7 +2,13 @@
 dab_id: HXS-DAB
 title: "Helix Seller Workable Items Data Asset Base"
 created: "2026-07-24T19:08:14Z"
+summary:
+  total_items: 1
+  open: 0
+  closed: 1
+  last_updated: "2026-07-24T22:53:44Z"
 items:
   - id: HXS-001
     title: "Angular SPA root page missing app-root or router-outlet"
-    status: open
+    status: closed
+    fix_commit: 7b02f08

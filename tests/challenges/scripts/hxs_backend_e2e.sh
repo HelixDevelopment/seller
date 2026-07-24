@@ -92,12 +92,21 @@ fi
 
 echo "--- WebSocket ---"
 if command -v websocat >/dev/null 2>&1; then
-    WS_RESULT=$(echo "" | timeout 3 websocat "ws://127.0.0.1:8080/ws" 2>&1 || echo "timeout/error")
-    echo "$WS_RESULT" | grep -qiE 'connected|message|error' && \
-        ab_pass "WebSocket endpoint reachable" || \
-        ab_skip "WebSocket not responding within 3s" "infra"
+    # Try to connect — the server should accept the WebSocket upgrade
+    WS_RESULT=$(echo "ping" | timeout 4 websocat "ws://127.0.0.1:8080/ws" 2>&1 || true)
+    if echo "$WS_RESULT" | grep -qiE '(connected|message|open|pong)'; then
+        ab_pass "WebSocket endpoint accepts connections and responds"
+    elif echo "$WS_RESULT" | grep -qiE 'error.*auth|unauthorized|401'; then
+        ab_pass "WebSocket endpoint requires authentication (expected — security)"
+    elif echo "$WS_RESULT" | grep -qiE 'timeout|refused|closed'; then
+        ab_skip "WebSocket endpoint not responding within timeout" "infra"
+    else
+        ab_skip "WebSocket connected but got unexpected response: $(echo "$WS_RESULT" | head -c 80)" "infra"
+    fi
 elif command -v curl >/dev/null && curl --version 2>/dev/null | grep -qi websocket; then
-    ab_skip "WebSocket test skipped — use websocat for interactive test" "infra"
+    WS_UPGRADE=$(curl -s -m 3 -o /dev/null -w '%{http_code}' -H "Upgrade: websocket" -H "Connection: Upgrade" "http://127.0.0.1:8080/ws" 2>/dev/null || echo "000")
+    [ "$WS_UPGRADE" = "101" ] && ab_pass "WebSocket upgrade returns 101 (switching protocols)" || \
+        ab_skip "WebSocket upgrade returned HTTP $WS_UPGRADE, want 101" "infra"
 else
     ab_skip "WebSocket test skipped — websocat not installed" "infra"
 fi

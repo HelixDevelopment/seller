@@ -6,8 +6,9 @@ Wants=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=/run/media/milosvasic/DATA4TB/Projects/helix_seller/web
-ExecStartPre=/usr/bin/test -x /usr/bin/npm
-ExecStart=/usr/bin/npm start
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/milosvasic/.npm-global/bin
+ExecStartPre=/bin/sh -c 'cd /run/media/milosvasic/DATA4TB/Projects/helix_seller/web && test -f package.json'
+ExecStart=/bin/sh -c 'cd /run/media/milosvasic/DATA4TB/Projects/helix_seller/web && exec npx ng serve --host 0.0.0.0 --port 4200'
 Restart=on-failure
 RestartSec=5
 
