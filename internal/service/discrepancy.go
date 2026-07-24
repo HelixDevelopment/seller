@@ -34,6 +34,14 @@ func (s *DiscrepancyService) CheckDiscrepancies(ctx context.Context, merchantID 
 		return nil, err
 	}
 
+	if result.Status == ReconciliationStatusUnavailable {
+		s.logger.Info("reconciliation unavailable, skipping discrepancy check",
+			zap.String("merchant_id", merchantID.String()),
+			zap.String("provider", provider),
+		)
+		return nil, nil
+	}
+
 	if result.Discrepancy == 0 {
 		return nil, nil
 	}

@@ -191,7 +191,7 @@ func TestWebhookService_SendNewRequestFails(t *testing.T) {
 		IsActive: true,
 	}
 
-	err := svc.send(config, []byte(`{"event":"test"}`))
+	_, _, err := svc.send(config, []byte(`{"event":"test"}`))
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "missing protocol scheme")
 }
@@ -233,7 +233,7 @@ func TestWebhookService_Send_EmptyBody(t *testing.T) {
 		Secret: "test_secret",
 	}
 
-	err := svc.send(config, []byte{})
+	_, _, err := svc.send(config, []byte{})
 	require.NoError(t, err)
 }
 

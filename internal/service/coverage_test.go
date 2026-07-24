@@ -456,7 +456,7 @@ func TestWebhookService_Send_WithQueryParams(t *testing.T) {
 		URL: server.URL + "/webhook",
 	}
 
-	err := svc.send(config, []byte(`{}`))
+	_, _, err := svc.send(config, []byte(`{}`))
 	if err != nil {
 		t.Fatalf("send failed: %v", err)
 	}
@@ -487,7 +487,7 @@ func TestWebhookService_Send_LargeBody(t *testing.T) {
 		URL: server.URL,
 	}
 
-	err := svc.send(config, largeBody)
+	_, _, err := svc.send(config, largeBody)
 	if err != nil {
 		t.Fatalf("send failed: %v", err)
 	}
@@ -1534,7 +1534,7 @@ func TestWebhookService_SendWithRetry_BadURL(t *testing.T) {
 	}
 
 	// sendWithRetry tries up to 5 times, all should fail with bad URL
-	svc.sendWithRetry(config, []byte(`{}`))
+	svc.sendWithRetry(uuid.Nil, config, []byte(`{}`))
 }
 
 func TestWebhookService_Deliver_EmptyConfigs(t *testing.T) {

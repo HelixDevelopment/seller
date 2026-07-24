@@ -16,7 +16,7 @@ import (
 )
 
 func TestWebhookService_Constructor(t *testing.T) {
-	svc := NewWebhookService(nil, zap.NewNop())
+	svc := NewWebhookService(nil, nil, zap.NewNop())
 	if svc == nil {
 		t.Fatal("expected non-nil WebhookService")
 	}
@@ -198,7 +198,7 @@ func TestWebhookService_Send_Success(t *testing.T) {
 	}
 
 	body := []byte(`{"type":"payment.succeeded"}`)
-	err := svc.send(config, body)
+	_, _, err := svc.send(config, body)
 	if err != nil {
 		t.Fatalf("send failed: %v", err)
 	}
@@ -235,7 +235,7 @@ func TestWebhookService_Send_WithSignature(t *testing.T) {
 	}
 
 	body := []byte(`{"test": true}`)
-	err := svc.send(config, body)
+	_, _, err := svc.send(config, body)
 	if err != nil {
 		t.Fatalf("send failed: %v", err)
 	}
@@ -273,7 +273,7 @@ func TestWebhookService_Send_NoSecret_NoSignature(t *testing.T) {
 		Secret: "",
 	}
 
-	err := svc.send(config, []byte(`{}`))
+	_, _, err := svc.send(config, []byte(`{}`))
 	if err != nil {
 		t.Fatalf("send failed: %v", err)
 	}
@@ -299,7 +299,7 @@ func TestWebhookService_Send_ServerError(t *testing.T) {
 		URL: server.URL,
 	}
 
-	err := svc.send(config, []byte(`{}`))
+	_, _, err := svc.send(config, []byte(`{}`))
 	if err == nil {
 		t.Error("expected error for 500 status")
 	}
@@ -316,7 +316,7 @@ func TestWebhookService_Send_BadURL(t *testing.T) {
 		URL: "http://localhost:1",
 	}
 
-	err := svc.send(config, []byte(`{}`))
+	_, _, err := svc.send(config, []byte(`{}`))
 	if err == nil {
 		t.Error("expected error for bad URL")
 	}
@@ -349,7 +349,7 @@ func TestWebhookService_SendWithRetry_EventuallySucceeds(t *testing.T) {
 		URL: server.URL,
 	}
 
-	svc.sendWithRetry(config, []byte(`{}`))
+	svc.sendWithRetry(uuid.Nil, config, []byte(`{}`))
 
 	mu.Lock()
 	got := attempts
@@ -381,7 +381,7 @@ func TestWebhookService_SendWithRetry_AllFail(t *testing.T) {
 		URL: server.URL,
 	}
 
-	svc.sendWithRetry(config, []byte(`{}`))
+	svc.sendWithRetry(uuid.Nil, config, []byte(`{}`))
 
 	mu.Lock()
 	got := attempts
@@ -402,7 +402,7 @@ func TestWebhookService_Send_BadRequest(t *testing.T) {
 		URL: "not-a-url",
 	}
 
-	err := svc.send(config, []byte(`{}`))
+	_, _, err := svc.send(config, []byte(`{}`))
 	if err == nil {
 		t.Error("expected error for invalid URL")
 	}
@@ -424,7 +424,7 @@ func TestWebhookService_Send_ClientError(t *testing.T) {
 		URL: server.URL,
 	}
 
-	err := svc.send(config, []byte(`{}`))
+	_, _, err := svc.send(config, []byte(`{}`))
 	if err == nil {
 		t.Error("expected error for 400 status")
 	}

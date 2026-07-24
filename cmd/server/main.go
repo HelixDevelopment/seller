@@ -69,6 +69,7 @@ func main() {
 	payoutRepo := repository.NewPayoutRepo(postgres.Pool)
 	disputeRepo := repository.NewDisputeRepo(postgres.Pool)
 	webhookConfigRepo := repository.NewWebhookConfigRepo(postgres.Pool)
+	webhookDeliveryRepo := repository.NewWebhookDeliveryRepo(postgres.Pool)
 	providerRepo := repository.NewProviderConfigRepo(postgres.Pool)
 	auditRepo := repository.NewAuditLogRepo(postgres.Pool)
 
@@ -89,7 +90,7 @@ func main() {
 	invoiceSvc := service.NewInvoiceService(invoiceRepo, eb, logger)
 	payoutSvc := service.NewPayoutService(payoutRepo, eb, logger)
 	disputeSvc := service.NewDisputeService(disputeRepo, eb, logger)
-	webhookSvc := service.NewWebhookService(webhookConfigRepo, logger)
+	webhookSvc := service.NewWebhookService(webhookConfigRepo, webhookDeliveryRepo, logger)
 	exchangeRateSvc := service.NewExchangeRateService(postgres.Pool, logger)
 	analyticsSvc := service.NewAnalyticsService(postgres.Pool)
 	billingSvc := service.NewBillingService(postgres.Pool, logger)

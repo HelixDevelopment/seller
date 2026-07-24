@@ -79,7 +79,7 @@ func newTestServices(userRepo *repository.UserRepo, webhookConfigRepo *repositor
 		panic(fmt.Sprintf("failed to create JWT service: %v", err))
 	}
 	mfaSvc := service.NewMFAService()
-	webhookSvc := service.NewWebhookService(webhookConfigRepo, nil)
+	webhookSvc := service.NewWebhookService(webhookConfigRepo, nil, nil)
 	apiKeySvc := service.NewApiKeyService(testDB)
 
 	return authSvc, jwtSvc, mfaSvc, webhookSvc, apiKeySvc

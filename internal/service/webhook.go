@@ -8,7 +8,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -19,16 +21,18 @@ import (
 )
 
 type WebhookService struct {
-	configRepo *repository.WebhookConfigRepo
-	logger     *zap.Logger
-	client     *http.Client
+	configRepo   *repository.WebhookConfigRepo
+	deliveryRepo *repository.WebhookDeliveryRepo
+	logger       *zap.Logger
+	client       *http.Client
 }
 
-func NewWebhookService(configRepo *repository.WebhookConfigRepo, logger *zap.Logger) *WebhookService {
+func NewWebhookService(configRepo *repository.WebhookConfigRepo, deliveryRepo *repository.WebhookDeliveryRepo, logger *zap.Logger) *WebhookService {
 	return &WebhookService{
-		configRepo: configRepo,
-		logger:     logger,
-		client:     &http.Client{Timeout: 30 * time.Second},
+		configRepo:   configRepo,
+		deliveryRepo: deliveryRepo,
+		logger:       logger,
+		client:       &http.Client{Timeout: 30 * time.Second},
 	}
 }
 
@@ -69,9 +73,28 @@ func (s *WebhookService) Deliver(ctx context.Context, merchantID uuid.UUID, even
 		"data":      payload,
 	})
 
+	now := time.Now()
 	for _, config := range configs {
 		if config.IsActive && s.eventMatches(config.Events, eventType) {
-			go s.sendWithRetry(config, body)
+			delivery := &model.WebhookDelivery{
+				ID:           uuid.New(),
+				WebhookID:    config.ID,
+				MerchantID:   merchantID,
+				EventType:    eventType,
+				EventPayload: string(body),
+				Status:       model.WebhookDeliveryPending,
+				MaxAttempts:  5,
+				CreatedAt:    now,
+				UpdatedAt:    now,
+			}
+			if err := s.deliveryRepo.Create(ctx, delivery); err != nil {
+				s.logger.Error("failed to create delivery record",
+					zap.String("webhook_id", config.ID.String()),
+					zap.Error(err),
+				)
+				continue
+			}
+			go s.sendWithRetry(delivery.ID, config, body)
 		}
 	}
 	return nil
@@ -86,14 +109,28 @@ func (s *WebhookService) eventMatches(events []string, eventType string) bool {
 	return false
 }
 
-func (s *WebhookService) sendWithRetry(config *model.WebhookConfig, body []byte) {
+func (s *WebhookService) sendWithRetry(deliveryID uuid.UUID, config *model.WebhookConfig, body []byte) {
+	ctx := context.Background()
 	maxRetries := 5
 	for i := 0; i < maxRetries; i++ {
-		if err := s.send(config, body); err == nil {
+		code, respBody, err := s.send(config, body)
+		if err == nil {
+			if s.deliveryRepo != nil {
+				s.deliveryRepo.UpdateStatus(ctx, deliveryID, model.WebhookDeliveryDelivered, code, respBody, "")
+			}
 			return
 		}
-		delay := time.Duration(1<<uint(i)) * time.Second
-		time.Sleep(delay)
+		if s.deliveryRepo != nil {
+			status := model.WebhookDeliveryRetrying
+			if i == maxRetries-1 {
+				status = model.WebhookDeliveryFailed
+			}
+			s.deliveryRepo.UpdateStatus(ctx, deliveryID, status, code, respBody, err.Error())
+		}
+		if i < maxRetries-1 {
+			delay := time.Duration(1<<uint(i)) * time.Second
+			time.Sleep(delay)
+		}
 	}
 	s.logger.Error("webhook delivery failed after retries",
 		zap.String("webhook_id", config.ID.String()),
@@ -101,10 +138,10 @@ func (s *WebhookService) sendWithRetry(config *model.WebhookConfig, body []byte)
 	)
 }
 
-func (s *WebhookService) send(config *model.WebhookConfig, body []byte) error {
+func (s *WebhookService) send(config *model.WebhookConfig, body []byte) (int, string, error) {
 	req, err := http.NewRequest("POST", config.URL, bytes.NewReader(body))
 	if err != nil {
-		return err
+		return 0, "", err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Helix-Webhook-ID", config.ID.String())
@@ -118,12 +155,16 @@ func (s *WebhookService) send(config *model.WebhookConfig, body []byte) error {
 
 	resp, err := s.client.Do(req)
 	if err != nil {
-		return err
+		return 0, "", err
 	}
 	defer resp.Body.Close()
 
+	respBody := new(strings.Builder)
+	io.Copy(respBody, resp.Body)
+	bodyStr := respBody.String()
+
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-		return nil
+		return resp.StatusCode, bodyStr, nil
 	}
-	return fmt.Errorf("webhook returned status %d", resp.StatusCode)
+	return resp.StatusCode, bodyStr, fmt.Errorf("webhook returned status %d", resp.StatusCode)
 }

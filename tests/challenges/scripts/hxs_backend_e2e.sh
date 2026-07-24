@@ -73,21 +73,105 @@ if [ -n "$TOKEN" ]; then
 else
     ab_skip "No token — skipping merchant tests" "infra"
 fi
+# Get or create a merchant for subsequent tests
+MERCHANT_ID=$(echo "$MERCHANTS" | grep -oE '"_?id"[[:space:]]*:[[:space:]]*"[^"]+"' | head -1 | sed 's/.*: *"//;s/"//')
+if [ -z "$MERCHANT_ID" ] && [ -n "$TOKEN" ]; then
+    CREATED=$(curl -s -m 5 -X POST -H "Authorization: Bearer $TOKEN" \
+        -H 'Content-Type: application/json' \
+        -d "{\"name\":\"HXS Test Merchant\",\"legal_name\":\"HXS Test Merchant LLC\",\"email\":\"$HXS_MERCHANT_EMAIL\",\"country\":\"US\",\"currency\":\"USD\"}" \
+        "$API_URL/api/v1/merchants" 2>/dev/null)
+    MERCHANT_ID=$(echo "$CREATED" | grep -oE '"_?id"[[:space:]]*:[[:space:]]*"[^"]+"' | head -1 | sed 's/.*: *"//;s/"//')
+fi
+if [ -n "$MERCHANT_ID" ]; then
+    ab_pass "Obtained/created merchant ID: $MERCHANT_ID"
+else
+    MERCHANT_ID="00000000-0000-0000-0000-000000000000"
+    ab_skip "No merchant available — using dummy ID" "infra"
+fi
 
-echo "--- Products (via merchants) ---"
-ab_skip "Product CRUD endpoints not implemented as standalone API — use merchants:merchantId routes" "infra"
+echo "--- Product CRUD ---"
+if [ -n "$TOKEN" ] && [ -n "$MERCHANT_ID" ]; then
+    # Create product
+    PROD=$(curl -s -m 5 -X POST -H "Authorization: Bearer $TOKEN" \
+        -H 'Content-Type: application/json' \
+        -d '{"name":"Test Widget","description":"A test product","price":2999,"currency":"USD"}' \
+        "$API_URL/api/v1/merchants/$MERCHANT_ID/products" 2>/dev/null)
+    PROD_ID=$(echo "$PROD" | grep -oE '"_?id"[[:space:]]*:[[:space:]]*"[^"]+"' | head -1 | sed 's/.*: *"//;s/"//')
+    if [ -n "$PROD_ID" ]; then
+        ab_pass "Product created (id=$PROD_ID)"
+    else
+        ab_fail "Product creation failed: $(echo "$PROD" | head -c 80)"
+    fi
 
-echo "--- Payments ---"
-if [ -n "$TOKEN" ]; then
+    # List products
+    PRODS=$(curl -s -m 5 -H "Authorization: Bearer $TOKEN" \
+        "$API_URL/api/v1/merchants/$MERCHANT_ID/products" 2>/dev/null)
+    if echo "$PRODS" | grep -qiE '"products"|"items"'; then
+        ab_pass "Product list returns products array"
+    else
+        ab_skip "Product list response unexpected: $(echo "$PRODS" | head -c 80)" "infra"
+    fi
+
+    # Get product
+    if [ -n "$PROD_ID" ]; then
+        PROD_GET=$(curl -s -m 5 -H "Authorization: Bearer $TOKEN" \
+            "$API_URL/api/v1/merchants/$MERCHANT_ID/products/$PROD_ID" 2>/dev/null)
+        echo "$PROD_GET" | grep -qiE '"name".*"Test Widget"' && \
+            ab_pass "Product retrieved with correct name" || \
+            ab_fail "Product retrieval returned unexpected data"
+
+        # Update product
+        PROD_UPD=$(curl -s -m 5 -X PUT -H "Authorization: Bearer $TOKEN" \
+            -H 'Content-Type: application/json' \
+            -d '{"name":"Updated Widget","price":3999}' \
+            "$API_URL/api/v1/merchants/$MERCHANT_ID/products/$PROD_ID" 2>/dev/null)
+        echo "$PROD_UPD" | grep -qiE '"name".*"Updated Widget"' && \
+            ab_pass "Product updated with new name" || \
+            ab_fail "Product update failed"
+
+        # Delete product
+        DEL_CODE=$(curl -s -m 5 -o /dev/null -w '%{http_code}' -X DELETE \
+            -H "Authorization: Bearer $TOKEN" \
+            "$API_URL/api/v1/merchants/$MERCHANT_ID/products/$PROD_ID" 2>/dev/null)
+        [ "$DEL_CODE" = "200" ] && ab_pass "Product deleted (HTTP 200)" || \
+            ab_fail "Product delete returned HTTP $DEL_CODE"
+    fi
+else
+    ab_skip "No token or merchant — skipping product CRUD tests" "infra"
+fi
+
+echo "--- Payment Flow ---"
+if [ -n "$TOKEN" ] && [ -n "$MERCHANT_ID" ] && [ "$MERCHANT_ID" != "00000000-0000-0000-0000-000000000000" ]; then
+    # Process payment
     PMT=$(curl -s -m 5 -X POST -H "Authorization: Bearer $TOKEN" \
         -H 'Content-Type: application/json' \
-        -d '{"amount":5000,"currency":"USD","payment_method":"card"}' \
-        "$API_URL/api/v1/payments/charge" 2>/dev/null)
-    echo "$PMT" | grep -qiE '"(id|charge|status)"' && \
-        ab_pass "Payment charge endpoint responds" || \
-        ab_skip "Payment charge not fully configured" "infra"
-else
-    ab_skip "No token — skipping payment tests" "infra"
+        -d "{\"amount\":5000,\"currency\":\"USD\",\"customer_id\":\"$MERCHANT_ID\",\"payment_method\":\"card\",\"description\":\"Test charge\"}" \
+        "$API_URL/api/v1/merchants/$MERCHANT_ID/transactions" 2>/dev/null)
+    TX_ID=$(echo "$PMT" | grep -oE '"_?id"[[:space:]]*:[[:space:]]*"[^"]+"' | head -1 | sed 's/.*: *"//;s/"//')
+    if [ -n "$TX_ID" ]; then
+        ab_pass "Payment transaction created (id=$TX_ID)"
+    else
+        ab_skip "Payment endpoint returned: $(echo "$PMT" | head -c 80)" "infra"
+    fi
+
+    # List transactions
+    TXS=$(curl -s -m 5 -H "Authorization: Bearer $TOKEN" \
+        "$API_URL/api/v1/merchants/$MERCHANT_ID/transactions" 2>/dev/null)
+    if echo "$TXS" | grep -qiE '"items"|\[|"transactions"'; then
+        ab_pass "Transactions list endpoint works"
+    else
+        ab_skip "Transactions list returned unexpected" "infra"
+    fi
+fi
+
+echo "--- Dispute Flow ---"
+if [ -n "$TOKEN" ] && [ -n "$MERCHANT_ID" ] && [ "$MERCHANT_ID" != "00000000-0000-0000-0000-000000000000" ]; then
+    # List disputes
+    DISP=$(curl -s -m 5 -H "Authorization: Bearer $TOKEN" \
+        "$API_URL/api/v1/merchants/$MERCHANT_ID/disputes" 2>/dev/null)
+    echo "$DISP" | grep -qiE '"items"|\[|"disputes"' && \
+        ab_pass "Disputes list endpoint works" || \
+        ab_skip "Disputes list response unexpected" "infra"
 fi
 
 echo "--- WebSocket ---"

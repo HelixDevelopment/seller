@@ -31,6 +31,7 @@ func TestReconciliationResult_Fields(t *testing.T) {
 		ProviderTotal:    99500,
 		Discrepancy:      500,
 		TransactionCount: 50,
+		Status:           ReconciliationStatusMismatch,
 	}
 
 	if r.PlatformTotal != 100000 {
@@ -44,6 +45,9 @@ func TestReconciliationResult_Fields(t *testing.T) {
 	}
 	if r.TransactionCount != 50 {
 		t.Errorf("TransactionCount = %d, want 50", r.TransactionCount)
+	}
+	if r.Status != ReconciliationStatusMismatch {
+		t.Errorf("Status = %s, want mismatch", r.Status)
 	}
 }
 
@@ -60,6 +64,21 @@ func TestReconciliationResult_ZeroValues(t *testing.T) {
 	}
 	if r.TransactionCount != 0 {
 		t.Errorf("TransactionCount = %d, want 0", r.TransactionCount)
+	}
+	if r.Status != "" {
+		t.Errorf("Status = %s, want empty zero value", r.Status)
+	}
+}
+
+func TestReconciliationStatus_Values(t *testing.T) {
+	if ReconciliationStatusMatch != "match" {
+		t.Errorf("ReconciliationStatusMatch = %s, want match", ReconciliationStatusMatch)
+	}
+	if ReconciliationStatusMismatch != "mismatch" {
+		t.Errorf("ReconciliationStatusMismatch = %s, want mismatch", ReconciliationStatusMismatch)
+	}
+	if ReconciliationStatusUnavailable != "unavailable" {
+		t.Errorf("ReconciliationStatusUnavailable = %s, want unavailable", ReconciliationStatusUnavailable)
 	}
 }
 

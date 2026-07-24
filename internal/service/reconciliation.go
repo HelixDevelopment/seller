@@ -9,6 +9,14 @@ import (
 	"go.uber.org/zap"
 )
 
+type ReconciliationStatus string
+
+const (
+	ReconciliationStatusMatch       ReconciliationStatus = "match"
+	ReconciliationStatusMismatch    ReconciliationStatus = "mismatch"
+	ReconciliationStatusUnavailable ReconciliationStatus = "unavailable"
+)
+
 type ReconciliationService struct {
 	db     *pgxpool.Pool
 	logger *zap.Logger
@@ -19,10 +27,11 @@ func NewReconciliationService(db *pgxpool.Pool, logger *zap.Logger) *Reconciliat
 }
 
 type ReconciliationResult struct {
-	PlatformTotal    int64 `json:"platform_total"`
-	ProviderTotal    int64 `json:"provider_total"`
-	Discrepancy      int64 `json:"discrepancy"`
-	TransactionCount int64 `json:"transaction_count"`
+	PlatformTotal    int64                `json:"platform_total"`
+	ProviderTotal    int64                `json:"provider_total"`
+	Discrepancy      int64                `json:"discrepancy"`
+	TransactionCount int64                `json:"transaction_count"`
+	Status           ReconciliationStatus `json:"status"`
 }
 
 func (s *ReconciliationService) Reconcile(ctx context.Context, merchantID uuid.UUID, provider string, from, to time.Time) (*ReconciliationResult, error) {
@@ -40,13 +49,16 @@ func (s *ReconciliationService) Reconcile(ctx context.Context, merchantID uuid.U
 	}
 
 	result.ProviderTotal = 0
+	result.Status = ReconciliationStatusUnavailable
 	result.Discrepancy = result.PlatformTotal - result.ProviderTotal
 
-	s.logger.Warn("reconciliation requires provider data to compute ProviderTotal accurately",
+	s.logger.Warn("provider data unavailable — ProviderTotal set to 0 as stub; connect provider API for real totals",
 		zap.String("merchant_id", merchantID.String()),
 		zap.String("provider", provider),
+		zap.Time("from", from),
+		zap.Time("to", to),
 		zap.Int64("platform_total", result.PlatformTotal),
-		zap.String("status", "pending"),
+		zap.Int64("transaction_count", result.TransactionCount),
 	)
 
 	return result, nil
