@@ -1,0 +1,18 @@
+---
+id: HXS-001
+title: "Angular SPA root page missing app-root or router-outlet"
+status: open
+severity: important
+source: "hxs_frontend_e2e"
+challenge_run: "2026-07-24T19:52:51Z"
+description: >
+  Auto-detected failure from hxs_frontend_e2e during run hxs_run_1.
+  Angular SPA root page missing app-root or router-outlet
+recordings: []
+findings: []
+root_cause: ""
+fix:
+  pr: ""
+  files: []
+  verified_by: ""
+related_items: []

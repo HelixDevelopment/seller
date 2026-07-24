@@ -48,11 +48,12 @@ echo "Scanning result files..."
 for rf in $RESULTS_FILES; do
     script_name=$(basename "$rf" .results)
     echo "  $script_name"
-    if grep -q '"decision":"FAIL"' "$rf" 2>/dev/null; then
+    if grep -qE '^(FAIL|"decision":"FAIL")' "$rf" 2>/dev/null; then
         HAS_FAILURES=1
         ISSUE_COUNT=$((ISSUE_COUNT + 1))
-        FAIL_LINE=$(grep -E '"decision":"FAIL"' "$rf" | head -1)
+        FAIL_LINE=$(grep -E '^(FAIL|"decision":"FAIL")' "$rf" | head -1)
         FAIL_DESC=$(echo "$FAIL_LINE" | grep -oE '"message"[[:space:]]*:[[:space:]]*"[^"]+"' | head -1 | sed 's/.*: *"//;s/"//')
+        [ -z "$FAIL_DESC" ] && FAIL_DESC=$(echo "$FAIL_LINE" | sed 's/^FAIL: //')
         [ -z "$FAIL_DESC" ] && FAIL_DESC="Unspecified failure"
 
         ITEM_ID="HXS-$(printf '%03d' $ISSUE_COUNT)"
