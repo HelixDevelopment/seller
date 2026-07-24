@@ -1,0 +1,8 @@
+[Unit]
+Description=Helix Seller — Full Platform Stack
+After=network-online.target
+Wants=network-online.target
+
+[Install]
+WantedBy=default.target
+Wants=helix-postgres.service helix-redis.service container-helix-nats.service helix-server.service helix-angular.service

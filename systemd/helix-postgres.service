@@ -1,0 +1,19 @@
+[Unit]
+Description=Helix Seller PostgreSQL Database
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=forking
+Environment=PODMAN_SYSTEMD_UNIT=%n
+Environment=POSTGRES_PASSWORD=helix_dev
+Restart=on-failure
+RestartSec=10
+ExecStartPre=/bin/rm -f %t/%n.ctr-id
+ExecStart=/usr/bin/podman run --cidfile=%t/%n.ctr-id --cgroups=no-conmon --sdnotify=conmon --replace --name helix-postgres --label io.containers.autoupdate=registry -d -p 127.0.0.1:5432:5432 -e POSTGRES_DB=helix_seller -e POSTGRES_USER=helix -e POSTGRES_PASSWORD=helix_dev -v helix-postgres-data:/var/lib/postgresql/data docker.io/library/postgres:16-alpine
+ExecStop=/usr/bin/podman stop --ignore --cidfile=%t/%n.ctr-id --time 30
+ExecStopPost=/usr/bin/podman rm -f --ignore --cidfile=%t/%n.ctr-id
+ExecReload=/usr/bin/podman kill -s HUP --cidfile=%t/%n.ctr-id
+
+[Install]
+WantedBy=helix.target

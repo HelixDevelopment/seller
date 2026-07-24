@@ -1,0 +1,15 @@
+[Unit]
+Description=Helix Seller Angular Dev Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/run/media/milosvasic/DATA4TB/Projects/helix_seller/web
+ExecStartPre=/usr/bin/test -x /usr/bin/npm
+ExecStart=/usr/bin/npm start
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=helix.target

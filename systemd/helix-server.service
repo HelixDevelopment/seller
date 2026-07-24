@@ -1,0 +1,15 @@
+[Unit]
+Description=Helix Seller Go Server
+After=helix-postgres.service helix-redis.service container-helix-nats.service
+Wants=helix-postgres.service helix-redis.service container-helix-nats.service
+
+[Service]
+Type=simple
+WorkingDirectory=/run/media/milosvasic/DATA4TB/Projects/helix_seller
+Environment=DATABASE_URL=postgres://helix:helix_dev@127.0.0.1:5432/helix_seller?sslmode=disable
+ExecStart=/run/media/milosvasic/DATA4TB/Projects/helix_seller/build/helix-server
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=helix.target
