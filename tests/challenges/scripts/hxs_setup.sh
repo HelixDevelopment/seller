@@ -63,21 +63,27 @@ else
 fi
 
 echo "=== Step 2: Backend Server ==="
+if command -v systemctl >/dev/null 2>&1 && systemctl --user is-active helix.target >/dev/null 2>&1; then
+    ab_pass "Systemd helix.target is active"
+else
+    if [ -f "$PROJECT_DIR/scripts/system-manage.sh" ]; then
+        bash "$PROJECT_DIR/scripts/system-manage.sh" start 2>&1 | tail -5 || true
+    fi
+fi
+
 HEALTH_CHECK=$(curl -s -m 3 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$SERVER_PORT/health" 2>/dev/null || echo "000")
 if [ "$HEALTH_CHECK" = "200" ]; then
-    ab_pass "Backend server already healthy (HTTP 200)"
-elif command -v go >/dev/null 2>&1; then
-    (cd "$PROJECT_DIR" && DATABASE_URL="$MIGRATE_DSN" go run cmd/server/main.go &) &
-    SERVER_PID=$!
-    sleep 5
-    HEALTH_CHECK=$(curl -s -m 3 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$SERVER_PORT/health" 2>/dev/null || echo "000")
-    if [ "$HEALTH_CHECK" = "200" ]; then
-        ab_pass "Backend server started (HTTP 200)"
-    else
-        ab_skip "Backend server not responding (HTTP $HEALTH_CHECK) — start manually" "infra"
-    fi
+    ab_pass "Backend server healthy (HTTP 200)"
 else
-    ab_skip "Go not installed — start server manually" "infra"
+    if command -v go >/dev/null 2>&1; then
+        (cd "$PROJECT_DIR" && DATABASE_URL="$MIGRATE_DSN" go run cmd/server/main.go &) &
+        sleep 6
+        HEALTH_CHECK=$(curl -s -m 3 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$SERVER_PORT/health" 2>/dev/null || echo "000")
+        [ "$HEALTH_CHECK" = "200" ] && ab_pass "Backend server started (HTTP 200)" || \
+            ab_skip "Backend server not responding (HTTP $HEALTH_CHECK)" "infra"
+    else
+        ab_skip "Go not installed — start server manually" "infra"
+    fi
 fi
 
 echo "=== Step 3: User Accounts ==="
@@ -117,8 +123,10 @@ echo "=== Step 4: Angular Portal ==="
 ANGULAR_CHECK=$(curl -s -m 3 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$ANGULAR_PORT" 2>/dev/null || echo "000")
 if [ "$ANGULAR_CHECK" = "200" ]; then
     ab_pass "Angular dev server healthy (HTTP 200)"
+elif [ -f "$PROJECT_DIR/web/package.json" ] && command -v npm >/dev/null 2>&1; then
+    ab_skip "Angular not started via systemd — use 'systemctl --user start helix-angular.service'" "infra"
 else
-    ab_skip "Angular dev server not responding (HTTP $ANGULAR_CHECK) — start with 'cd web && npm start'" "infra"
+    ab_skip "Angular dev server not running (HTTP $ANGULAR_CHECK) — npm may not be installed" "infra"
 fi
 
 echo

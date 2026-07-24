@@ -1,7 +1,7 @@
 [Unit]
 Description=Helix Seller Go Server
-After=helix-postgres.service helix-redis.service container-helix-nats.service
-Wants=helix-postgres.service helix-redis.service container-helix-nats.service
+After=container-helix-postgres.service container-helix-redis.service container-helix-nats.service
+Wants=container-helix-postgres.service container-helix-redis.service container-helix-nats.service
 
 [Service]
 Type=simple
