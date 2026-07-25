@@ -1,10 +1,15 @@
 package handler
 
 import (
+	"crypto"
 	"crypto/hmac"
+	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/subtle"
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/hex"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"net/http"
@@ -94,6 +99,60 @@ func verifySquareSignature(payload []byte, sigHeader string, sigKey string) erro
 	return nil
 }
 
+func verifyPayPalWebhookSignature(payload []byte, headers map[string]string) error {
+	certURL := headers["PAYPAL-CERT-URL"]
+	transmissionSig := headers["PAYPAL-TRANSMISSION-SIG"]
+	transmissionID := headers["PAYPAL-TRANSMISSION-ID"]
+	transmissionTime := headers["PAYPAL-TRANSMISSION-TIME"]
+
+	if certURL == "" || transmissionSig == "" || transmissionID == "" || transmissionTime == "" {
+		return fmt.Errorf("missing required PayPal webhook headers")
+	}
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Get(certURL)
+	if err != nil {
+		return fmt.Errorf("fetch PayPal certificate: %w", err)
+	}
+	defer resp.Body.Close()
+
+	certPEM, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("read PayPal certificate: %w", err)
+	}
+
+	block, _ := pem.Decode(certPEM)
+	if block == nil {
+		return fmt.Errorf("failed to decode PayPal certificate PEM")
+	}
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return fmt.Errorf("parse PayPal certificate: %w", err)
+	}
+
+	sigString := transmissionID + "|" + transmissionTime + "|" + string(payload)
+
+	sig, err := base64.StdEncoding.DecodeString(transmissionSig)
+	if err != nil {
+		return fmt.Errorf("decode PayPal signature: %w", err)
+	}
+
+	rsaPub, ok := cert.PublicKey.(*rsa.PublicKey)
+	if !ok {
+		return fmt.Errorf("PayPal certificate public key is not RSA")
+	}
+
+	hash := crypto.SHA256
+	h := hash.New()
+	h.Write([]byte(sigString))
+	if err := rsa.VerifyPKCS1v15(rsaPub, hash, h.Sum(nil), sig); err != nil {
+		return fmt.Errorf("PayPal signature verification failed: %w", err)
+	}
+
+	return nil
+}
+
 func (h *WebhookIngressHandler) HandleStripe(c *gin.Context) {
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
@@ -158,12 +217,19 @@ func (h *WebhookIngressHandler) HandlePayPal(c *gin.Context) {
 		return
 	}
 
-	// TODO: Full PayPal certificate-based verification
-	// Requires fetching certificate from PAYPAL-CERT-URL and verifying
-	// the transmission signature. This is a best-effort check for now.
-	h.logger.Info("paypal webhook received (signature verification requires certificate fetch)",
-		zap.String("transmission_id", transmissionID),
-	)
+	headers := map[string]string{
+		"PAYPAL-CERT-URL":        c.GetHeader("PAYPAL-CERT-URL"),
+		"PAYPAL-TRANSMISSION-SIG": c.GetHeader("PAYPAL-TRANSMISSION-SIG"),
+		"PAYPAL-TRANSMISSION-ID":  c.GetHeader("PAYPAL-TRANSMISSION-ID"),
+		"PAYPAL-TRANSMISSION-TIME": c.GetHeader("PAYPAL-TRANSMISSION-TIME"),
+		"PAYPAL-AUTH-ALGO":        c.GetHeader("PAYPAL-AUTH-ALGO"),
+	}
+
+	if err := verifyPayPalWebhookSignature(body, headers); err != nil {
+		h.logger.Warn("paypal webhook signature verification failed", zap.Error(err))
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
 
 	h.eventBus.Publish(c.Request.Context(), "events.provider.paypal", &eventbus.Event{
 		Type:   "provider.webhook.received",

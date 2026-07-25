@@ -120,6 +120,18 @@ export interface ApiKey {
   created_at: string;
 }
 
+export interface Product {
+  id: string;
+  merchant_id: string;
+  name: string;
+  description?: string;
+  price: number;
+  currency: string;
+  status: 'active' | 'inactive' | 'archived';
+  created_at: string;
+  updated_at: string;
+}
+
 export interface WebhookConfig {
   id: string;
   merchant_id: string;
@@ -229,6 +241,31 @@ export class ApiService {
 
   cancelSubscription(id: string): Observable<Subscription> {
     return this.http.post<Subscription>(`${this.baseUrl}/subscriptions/${id}/cancel`, {});
+  }
+
+  getProducts(merchantId: string, page = 1, perPage = 20): Observable<PaginatedResponse<Product>> {
+    const params = new HttpParams()
+      .set('page', page.toString())
+      .set('per_page', perPage.toString());
+    return this.http.get<PaginatedResponse<Product>>(
+      `${this.baseUrl}/merchants/${merchantId}/products`, { params }
+    );
+  }
+
+  getProduct(merchantId: string, id: string): Observable<Product> {
+    return this.http.get<Product>(`${this.baseUrl}/merchants/${merchantId}/products/${id}`);
+  }
+
+  createProduct(merchantId: string, product: Partial<Product>): Observable<Product> {
+    return this.http.post<Product>(`${this.baseUrl}/merchants/${merchantId}/products`, product);
+  }
+
+  updateProduct(merchantId: string, id: string, product: Partial<Product>): Observable<Product> {
+    return this.http.put<Product>(`${this.baseUrl}/merchants/${merchantId}/products/${id}`, product);
+  }
+
+  deleteProduct(merchantId: string, id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/merchants/${merchantId}/products/${id}`);
   }
 
   testWebhook(merchantId: string, id: string): Observable<Record<string, unknown>> {

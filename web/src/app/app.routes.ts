@@ -53,6 +53,26 @@ export const routes: Routes = [
           import('./pages/subscriptions/subscriptions.component').then(m => m.SubscriptionsComponent),
       },
       {
+        path: 'products',
+        loadComponent: () =>
+          import('./pages/products/products.component').then(m => m.ProductsComponent),
+      },
+      {
+        path: 'products/new',
+        loadComponent: () =>
+          import('./pages/product-create/product-create.component').then(m => m.ProductCreateComponent),
+      },
+      {
+        path: 'products/:id',
+        loadComponent: () =>
+          import('./pages/product-detail/product-detail.component').then(m => m.ProductDetailComponent),
+      },
+      {
+        path: 'products/:id/edit',
+        loadComponent: () =>
+          import('./pages/product-edit/product-edit.component').then(m => m.ProductEditComponent),
+      },
+      {
         path: 'providers',
         loadComponent: () =>
           import('./pages/providers/providers.component').then(m => m.ProvidersComponent),

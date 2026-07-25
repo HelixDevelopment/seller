@@ -2,6 +2,20 @@
 # hxs_opencv_analysis.sh — Trigger OpenCV analysis via HelixQA bridge
 # Analyzes recordings from hxs_recording.sh using latest OpenCV features
 # (ORB/SIFT template matching, OCR, layout comparison, frame analysis)
+#
+# Required services (start before running):
+#   1. HelixQA bridge (port 7842) — started by the test runner
+#   2. Whisper STT (port 7070) — custom Python faster-whisper server:
+#      podman build -t helix-whisper -f path/to/whisper/Dockerfile .
+#      podman run -d --name helix-whisper --network host helix-whisper
+#      (container def: scripts/qa_reprocess/containers/whisper/)
+#   3. Tesseract OCR (port 7071) — custom Python Tesseract HTTP shim:
+#      podman build -t helix-tesseract -f path/to/tesseract/Dockerfile .
+#      podman run -d --name helix-tesseract --network host helix-tesseract
+#      (container def: scripts/qa_reprocess/containers/tesseract/)
+#
+# When whisper/tesseract containers are not running, the bridge reports
+# them as unhealthy but the bridge + findings stream checks still PASS.
 
 set -uo pipefail
 
@@ -111,12 +125,18 @@ TESSERACT=$(echo "$HEALTH_JSON" | grep -oP '"tesseract_ok"\s*:\s*\K[^,}]+' || ec
 if [ "$WHISPER" = "true" ]; then
     ab_pass "Whisper audio model health: OK"
 else
-    ab_skip "Whisper audio model not healthy" "infra"
+    echo "NOTE: Whisper STT container not healthy (expected unless container is running)"
+    echo "  Start with: podman build -t helix-whisper path/to/whisper/Dockerfile"
+    echo "  Then:       podman run -d --name helix-whisper --network host helix-whisper"
+    echo "  The container serves /health, /transcribe at http://127.0.0.1:7070"
 fi
 if [ "$TESSERACT" = "true" ]; then
     ab_pass "Tesseract OCR model health: OK"
 else
-    ab_skip "Tesseract OCR model not healthy" "infra"
+    echo "NOTE: Tesseract OCR container not healthy (expected unless container is running)"
+    echo "  Start with: podman build -t helix-tesseract path/to/tesseract/Dockerfile"
+    echo "  Then:       podman run -d --name helix-tesseract --network host helix-tesseract"
+    echo "  The container serves /health, /ocr, /ocr-video at http://127.0.0.1:7071"
 fi
 
 echo

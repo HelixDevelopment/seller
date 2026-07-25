@@ -549,7 +549,10 @@ func TestTransactionModel_StatusConstants(t *testing.T) {
 func TestTransactionModel_Fields(t *testing.T) {
 	processedAt := time.Now()
 	netAmount := int64(9500)
-	metadata := json.RawMessage(`{"fee":500}`)
+	idem := "idem_abc"
+	desc := "Test payment"
+	errCode := ""
+	errMsg := ""
 
 	tx := &model.Transaction{
 		ID:                    uuid.New(),
@@ -562,11 +565,10 @@ func TestTransactionModel_Fields(t *testing.T) {
 		Currency:              "USD",
 		Status:                model.TransactionStatusPending,
 		PaymentMethodID:       uuid.New(),
-		IdempotencyKey:        "idem_abc",
-		Description:           "Test payment",
-		Metadata:              metadata,
-		ErrorCode:             "",
-		ErrorMessage:          "",
+		IdempotencyKey:        &idem,
+		Description:           &desc,
+		ErrorCode:             &errCode,
+		ErrorMessage:          &errMsg,
 		FeeAmount:             500,
 		NetAmount:             &netAmount,
 		ProcessedAt:           &processedAt,

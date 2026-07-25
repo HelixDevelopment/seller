@@ -110,6 +110,8 @@ func main() {
 	payoutHandler := handler.NewPayoutHandler(payoutSvc)
 	disputeHandler := handler.NewDisputeHandler(disputeSvc)
 	webhookHandler := handler.NewWebhookHandler(webhookSvc)
+	webhookDeliverySvc := service.NewWebhookDeliveryService(webhookDeliveryRepo, logger)
+	webhookDeliveryHandler := handler.NewWebhookDeliveryHandler(webhookDeliverySvc)
 	analyticsHandler := handler.NewAnalyticsHandler(analyticsSvc)
 	providerHandler := handler.NewProviderHandler(providerRepo)
 	paymentMethodHandler := handler.NewPaymentMethodHandler(pmRepo)
@@ -158,6 +160,7 @@ func main() {
 		billingHandler,
 		healthHandler,
 		wsHandler,
+		webhookDeliveryHandler,
 	)
 
 	// Apply middleware

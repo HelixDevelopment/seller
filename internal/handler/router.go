@@ -10,7 +10,7 @@ import (
 	"github.com/helix-seller/helix-seller/internal/websocket"
 )
 
-func NewRouter(logger *zap.Logger, authMiddleware gin.HandlerFunc, rdb *redis.Client, db *pgxpool.Pool, rateLimitRPS int, authHandler *AuthHandler, userHandler *UserHandler, apiKeyHandler *ApiKeyHandler, merchantHandler *MerchantHandler, productHandler *ProductHandler, paymentHandler *PaymentHandler, customerHandler *CustomerHandler, subscriptionHandler *SubscriptionHandler, invoiceHandler *InvoiceHandler, payoutHandler *PayoutHandler, disputeHandler *DisputeHandler, webhookHandler *WebhookHandler, analyticsHandler *AnalyticsHandler, providerHandler *ProviderHandler, paymentMethodHandler *PaymentMethodHandler, exchangeRateHandler *ExchangeRateHandler, auditHandler *AuditHandler, webhookIngressHandler *WebhookIngressHandler, billingHandler *BillingHandler, healthHandler *HealthHandler, wsHandler *websocket.WSHandler) *gin.Engine {
+func NewRouter(logger *zap.Logger, authMiddleware gin.HandlerFunc, rdb *redis.Client, db *pgxpool.Pool, rateLimitRPS int, authHandler *AuthHandler, userHandler *UserHandler, apiKeyHandler *ApiKeyHandler, merchantHandler *MerchantHandler, productHandler *ProductHandler, paymentHandler *PaymentHandler, customerHandler *CustomerHandler, subscriptionHandler *SubscriptionHandler, invoiceHandler *InvoiceHandler, payoutHandler *PayoutHandler, disputeHandler *DisputeHandler, webhookHandler *WebhookHandler, analyticsHandler *AnalyticsHandler, providerHandler *ProviderHandler, paymentMethodHandler *PaymentMethodHandler, exchangeRateHandler *ExchangeRateHandler, auditHandler *AuditHandler, webhookIngressHandler *WebhookIngressHandler, billingHandler *BillingHandler, healthHandler *HealthHandler, wsHandler *websocket.WSHandler, deliveryHandler *WebhookDeliveryHandler) *gin.Engine {
 	router := gin.New()
 	router.Use(gin.Recovery())
 
@@ -132,6 +132,8 @@ func NewRouter(logger *zap.Logger, authMiddleware gin.HandlerFunc, rdb *redis.Cl
 					wh.GET("/:webhookId", webhookHandler.GetWebhook)
 					wh.PUT("/:webhookId", webhookHandler.UpdateWebhook)
 					wh.DELETE("/:webhookId", webhookHandler.DeleteWebhook)
+					wh.GET("/deliveries", deliveryHandler.ListDeliveries)
+					wh.GET("/deliveries/:deliveryId", deliveryHandler.GetDelivery)
 				}
 
 			// Provider Configs

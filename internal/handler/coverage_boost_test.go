@@ -25,6 +25,7 @@ func TestNewRouter(t *testing.T) {
 		nil, nil, nil, nil, nil, nil, nil,
 		nil, nil, nil,
 		wsHandler,
+		nil,
 	)
 	if r == nil {
 		t.Fatal("NewRouter returned nil")
@@ -65,6 +66,7 @@ func TestRouter_HealthAndEndpoints(t *testing.T) {
 			logger: zap.NewNop(),
 		},
 		wsHandler,
+		&WebhookDeliveryHandler{},
 	)
 
 	tests := []struct {

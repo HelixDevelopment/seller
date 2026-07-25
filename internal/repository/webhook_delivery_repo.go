@@ -70,7 +70,15 @@ func (r *WebhookDeliveryRepo) GetByID(ctx context.Context, id uuid.UUID) (*model
 	return d, nil
 }
 
-func (r *WebhookDeliveryRepo) ListByMerchant(ctx context.Context, merchantID uuid.UUID, limit, offset int) ([]*model.WebhookDelivery, error) {
+func (r *WebhookDeliveryRepo) ListByMerchant(ctx context.Context, merchantID uuid.UUID, limit, offset int) ([]*model.WebhookDelivery, int, error) {
+	var total int
+	err := r.db.QueryRow(ctx,
+		`SELECT COUNT(*) FROM webhook_deliveries WHERE merchant_id = $1`, merchantID,
+	).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("count webhook deliveries: %w", err)
+	}
+
 	rows, err := r.db.Query(ctx,
 		`SELECT id, webhook_id, merchant_id, event_type, event_payload, status, attempts, max_attempts, response_code, response_body, last_error, completed_at, created_at, updated_at
 		 FROM webhook_deliveries WHERE merchant_id = $1
@@ -79,7 +87,7 @@ func (r *WebhookDeliveryRepo) ListByMerchant(ctx context.Context, merchantID uui
 		merchantID, limit, offset,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("list webhook deliveries: %w", err)
+		return nil, 0, fmt.Errorf("list webhook deliveries: %w", err)
 	}
 	defer rows.Close()
 
@@ -91,11 +99,11 @@ func (r *WebhookDeliveryRepo) ListByMerchant(ctx context.Context, merchantID uui
 			&d.Status, &d.Attempts, &d.MaxAttempts, &d.ResponseCode, &d.ResponseBody,
 			&d.LastError, &d.CompletedAt, &d.CreatedAt, &d.UpdatedAt,
 		); err != nil {
-			return nil, fmt.Errorf("scan webhook delivery: %w", err)
+			return nil, 0, fmt.Errorf("scan webhook delivery: %w", err)
 		}
 		deliveries = append(deliveries, d)
 	}
-	return deliveries, nil
+	return deliveries, total, nil
 }
 
 
